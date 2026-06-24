@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalkulator HPP & Harga Jual</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:1100px;margin:auto;padding:20px}
+table{border-collapse:collapse;width:100%;margin-top:10px}
+th,td{border:1px solid #ccc;padding:8px}
+input{width:100%;box-sizing:border-box}
+button{padding:8px 12px;margin:4px}
+.alert{background:#fff3cd;padding:10px;border:1px solid #ffe69c;margin:10px 0}
+</style>
+</head>
+<body>
+<h2>Kalkulator HPP & Harga Jual</h2>
+
+<div>
+<h3>Bahan Baku</h3>
+<table id="bahanTable">
+<tr><th>Nama Bahan</th><th>Harga per Unit</th></tr>
+</table>
+<button onclick="tambahBahan()">+ Tambah Bahan</button>
+<button onclick="simpan()">Simpan Data</button>
+</div>
+
+<div>
+<h3>Produk</h3>
+<table id="produkTable">
+<tr><th>Nama Produk</th><th>Resep (format: bahan=qty,bahan=qty)</th><th>Markup %</th><th>HPP</th><th>Harga Jual</th></tr>
+</table>
+<button onclick="tambahProduk()">+ Tambah Produk</button>
+</div>
+
+<div id="notif"></div>
+
+<script>
+let lastHpp={};
+
+function tambahBahan(n='',h=''){
+ let r=bahanTable.insertRow();
+ r.innerHTML=`<td><input value="${n}" oninput="hitung()"></td>
+ <td><input type="number" value="${h}" oninput="hitung()"></td>`;
+}
+
+function tambahProduk(n='',r='',
+m='50'){
+ let row=produkTable.insertRow();
+ row.innerHTML=`<td><input value="${n}" oninput="hitung()"></td>
+ <td><input value="${r}" oninput="hitung()"></td>
+ <td><input type="number" value="${m}" oninput="hitung()"></td>
+ <td class='hpp'>0</td>
+ <td class='jual'>0</td>`;
+}
+
+function getBahan(){
+ let data={};
+ [...bahanTable.rows].slice(1).forEach(r=>{
+   let nama=r.cells[0].querySelector('input').value.trim();
+   let harga=parseFloat(r.cells[1].querySelector('input').value||0);
+   if(nama)data[nama]=harga;
+ });
+ return data;
+}
+
+function hitung(){
+ let bahan=getBahan();
+ let notif=[];
+ [...produkTable.rows].slice(1).forEach(r=>{
+   let nama=r.cells[0].querySelector('input').value;
+   let resep=r.cells[1].querySelector('input').value;
+   let markup=parseFloat(r.cells[2].querySelector('input').value||0);
+
+   let hpp=0;
+   resep.split(',').forEach(x=>{
+      let p=x.split('=');
+      if(p.length===2){
+        let b=p[0].trim();
+        let q=parseFloat(p[1]);
+        hpp += (bahan[b]||0)*q;
+      }
+   });
+
+   let jual=hpp*(1+markup/100);
+   r.querySelector('.hpp').innerText=hpp.toFixed(0);
+   r.querySelector('.jual').innerText=jual.toFixed(0);
+
+   if(lastHpp[nama] && lastHpp[nama]!==hpp){
+      notif.push("Produk '"+nama+"' terdampak perubahan harga bahan.");
+   }
+   lastHpp[nama]=hpp;
+ });
+
+ document.getElementById('notif').innerHTML =
+ notif.length ? '<div class="alert"><b>Pemberitahuan:</b><br>'+notif.join('<br>')+'</div>' : '';
+}
+
+function simpan(){
+ let data={
+   bahan:[...bahanTable.rows].slice(1).map(r=>[r.cells[0].querySelector('input').value,r.cells[1].querySelector('input').value]),
+   produk:[...produkTable.rows].slice(1).map(r=>[r.cells[0].querySelector('input').value,r.cells[1].querySelector('input').value,r.cells[2].querySelector('input').value])
+ };
+ localStorage.setItem('hppApp',JSON.stringify(data));
+ alert('Data tersimpan');
+}
+
+function load(){
+ let d=localStorage.getItem('hppApp');
+ if(d){
+   d=JSON.parse(d);
+   d.bahan.forEach(x=>tambahBahan(x[0],x[1]));
+   d.produk.forEach(x=>tambahProduk(x[0],x[1],x[2]));
+ } else {
+   tambahBahan('Susu',23000);
+   tambahBahan('Espresso',185);
+   tambahProduk('Es Kopi Susu','Susu=0.2,Espresso=30',100);
+ }
+ hitung();
+}
+load();
+</script>
+</body>
+</html>
